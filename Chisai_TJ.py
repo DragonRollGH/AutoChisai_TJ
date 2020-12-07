@@ -32,8 +32,8 @@ class Chisai_TJ:
         self.session = requests.session()
         self.ifSuccess = False
         self.exp = 0
-        self.IP = '58.41.205.20'
-        self.Receivers = ['dr-tj@outlook.com']
+        self.IP = ''
+        self.Receivers = ['']
         self.POST = {
             'studentPid': '',
             'studentName': '',
