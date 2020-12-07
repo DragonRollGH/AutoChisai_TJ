@@ -1,3 +1,4 @@
+import base64
 import json
 import random
 import smtplib
@@ -7,20 +8,21 @@ from urllib import parse
 
 import requests
 
-
 Usr = {
     'Authorization': '',
     'studentPid': '',
     'studentName': '',
     'studentStudentno': '',
     'studentCollege': '',
+    'IP': '',
+    'Receivers': ''
 }
 
 class Chisai_TJ:
     def __init__(self, Usr):
         def Gen_reportDatetime():
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            return t#parse.quote(t)
+            return t
         def Gen_locLat():
             L = '31.28'
             return L+str(random.randint(222, 888))
@@ -29,7 +31,9 @@ class Chisai_TJ:
             return L+str(random.randint(222, 888))
         self.session = requests.session()
         self.ifSuccess = False
+        self.exp = 0
         self.IP = '58.41.205.20'
+        self.Receivers = ['dr-tj@outlook.com']
         self.POST = {
             'studentPid': '',
             'studentName': '',
@@ -62,13 +66,29 @@ class Chisai_TJ:
         for k, v in Usr.items():
             if k == 'IP':
                 self.IP = v
+            elif k == 'Receivers':
+                self.Receivers.append(v)
             elif k in self.POST.keys():
                 self.POST[k] = v
             elif k in self.headers.keys():
                 self.headers[k] = v
         if self.IP:
-            # self.headers['X-Forwarded-For'] = self.IP
-            pass
+            self.headers['X-Forwarded-For'] = self.IP
+            # pass
+
+    def verifyToken(self):
+        try:
+            jwt_b64 = self.headers['Authorization'].split('.')[1]+'=='
+            jwt = base64.b64decode(jwt_b64).decode('utf-8')
+            exp = int(jwt[7: 17])
+            now = int(time.time())
+            if now > exp:
+                return False
+            n2e = time.localtime(exp - now)
+            self.exp = n2e.tm_yday - 1
+            return True
+        except:
+            return True
 
     def isActivated(self):
         Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/tblStudentUsers/isActivated?studentPid={}'.format(self.POST['studentPid'])
@@ -106,33 +126,36 @@ class Chisai_TJ:
         return Requ
 
     def run(self):
-        if '操作成功' in self.isActivated().text:
-            time.sleep(1)
-            if '今日未打卡' in self.hasDoneToday().text:
-                time.sleep(3)
-                if '操作成功' in self.v2().text:
-                    self.Success()
+        if self.verifyToken():
+            if '操作成功' in self.isActivated().text:
+                time.sleep(1)
+                if '今日未打卡' in self.hasDoneToday().text:
+                    time.sleep(3)
+                    if '操作成功' in self.v2().text:
+                        self.Success()
+                    else:
+                        self.Error('无法打卡！\n' + self.v2Text)
+                elif '今日已打卡' in self.hasDoneTodayText:
+                    self.Error('今日已打卡！\n')
                 else:
-                    self.Error('无法打卡！\n' + self.v2Text)
-            elif '今日已打卡' in self.hasDoneTodayText:
-                self.Error('今日已打卡！')
+                    self.Error('无法获取打卡状态！\n' + self.hasDoneTodayText)
             else:
-                self.Error('无法获取打卡状态！\n' + self.hasDoneTodayText)
+                self.Error('无法连接服务器！\n' + self.isActivatedText)
         else:
-            self.Error('无法连接服务器！\n' + self.isActivatedText)
+            self.Error('Token已过期！\n')
         return self.ifSuccess
 
     def LOG(self, msg):
         with open('Chisai_TJ.log','a') as LOG:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             LOG.write(t+'  '+msg+'\n')
-            print(t+'  '+msg+'\n')
+            print(t+'  '+msg)
 
     def Success(self):
         self.ifSuccess = True
         Title = '{}: 打卡成功！ '.format(self.POST['studentStudentno'])
-        Content = '{}: 打卡成功！ '.format(self.POST['studentStudentno'])
-        ContentEmail = '{}: 打卡成功！ '.format(self.POST['studentStudentno'])
+        Content = 'Token还有{}天到期。'.format(self.exp)
+        ContentEmail = 'Token还有{}天到期。'.format(self.exp)
         self.SendEmail(Title, ContentEmail)
         self.LOG(Title + Content)
 
@@ -148,7 +171,7 @@ class Chisai_TJ:
         mail_pass = ""
 
         sender = ''
-        receivers = ['']
+        receivers = self.Receivers
 
         message = MIMEText(content, 'plain', 'utf-8')
         message['From'] = "{}".format(sender)
@@ -166,4 +189,3 @@ class Chisai_TJ:
 Chisais = [Chisai_TJ(Usr)]
 for Chisai in Chisais:
     Chisai.run()
-
