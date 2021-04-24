@@ -8,14 +8,15 @@ from urllib import parse
 
 import requests
 
+# 用微信PC端小程序打卡，并且用Fiddler抓HTTPS包，以获取下列信息。
 Usr = {
-    'Authorization': '',
+    'Authorization': 'Bearer eyJhbGcXXXXXXXXXXX',
     'studentPid': '',
     'studentName': '',
     'studentStudentno': '',
     'studentCollege': '',
-    'IP': '',
-    'Receivers': ''
+    'IP': 'XFF代理地址',
+    'Receivers': '邮件反馈的收件邮箱，在下方SendEmail函数里填发件邮箱'
 }
 
 class Chisai_TJ:
@@ -24,16 +25,16 @@ class Chisai_TJ:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             return t
         def Gen_locLat():
-            L = '31.28'
+            L = '31.37'
             return L+str(random.randint(222, 888))
         def Gen_locLng():
-            L = '121.21'
+            L = '121.26'
             return L+str(random.randint(222, 888))
         self.session = requests.session()
         self.ifSuccess = False
         self.exp = 0
-        self.IP = ''
-        self.Receivers = ['']
+        self.IP = '58.41.205.20'
+        self.Receivers = ['dr-tj@outlook.com']
         self.POST = {
             'studentPid': '',
             'studentName': '',
@@ -45,13 +46,19 @@ class Chisai_TJ:
             'locProvince': '上海市',
             'locCity': '上海市',
             'locDistrict': '嘉定区',
-            'healthy': '0', 'source': 'weixin,windows',
+            'healthy': '0',
+            'source': 'weixin,windows',
             'reportDatetime': Gen_reportDatetime(),
             'hasMoved': 'false',
             'leaveReason': '',
             'locNation1': '中国',
             'locProvince1': '上海市',
-            'locCity1': '上海市'
+            'locCity1': '上海市',
+            'locRiskaddress': '不在范围内',
+            'locRisklevelGoverment': '低风险',
+            'studentStatusQuarantine': '正常（未隔离）',
+            'locStreet': '新成路街道',
+            'locStreetno': 'X167'
         }
         self.headers = {
             'Host': 'tjxsfw.chisai.tech',
@@ -90,6 +97,15 @@ class Chisai_TJ:
         except:
             return True
 
+    def tblAnnouncement(self):
+        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/tblAnnouncement/'
+        try:
+            Requ = self.session.get(url=Url, headers=self.headers)
+        except Exception as Error:
+            self.Error('requestsError: tblAnnouncement\n' + str(Error))
+        self.tblAnnouncementText = Requ.text
+        return Requ
+
     def isActivated(self):
         Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/tblStudentUsers/isActivated?studentPid={}'.format(self.POST['studentPid'])
         try:
@@ -97,6 +113,24 @@ class Chisai_TJ:
         except Exception as Error:
             self.Error('requestsError: isActivated\n' + str(Error))
         self.isActivatedText = Requ.text
+        return Requ
+
+    def csQDef(self):
+        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/csQDef/?studentPid={}'.format(self.POST['studentPid'])
+        try:
+            Requ = self.session.get(url=Url, headers=self.headers)
+        except Exception as Error:
+            self.Error('requestsError: csQDef\n' + str(Error))
+        self.csQDefText = Requ.text
+        return Requ
+
+    def yqfkQVaccine1(self):
+        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/yqfkQVaccine1/byId?studentPid={}'.format(self.POST['studentPid'])
+        try:
+            Requ = self.session.get(url=Url, headers=self.headers)
+        except Exception as Error:
+            self.Error('requestsError: yqfkQVaccine1\n' + str(Error))
+        self.yqfkQVaccine1Text = Requ.text
         return Requ
 
     def hasDoneToday(self):
@@ -108,37 +142,86 @@ class Chisai_TJ:
         self.hasDoneTodayText = Requ.text
         return Requ
 
-    def v2(self):
+    def yqfkRefRisklocationsGov(self):
+        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/yqfkRefRisklocationsGov/'
+        try:
+            Requ = self.session.get(url=Url, headers=self.headers)
+        except Exception as Error:
+            self.Error('requestsError: yqfkRefRisklocationsGov\n' + str(Error))
+        self.yqfkRefRisklocationsGovText = Requ.text
+        return Requ
+
+    def v3(self):
         def Gen_contentLength(data):
             length = len(data.keys()) * 2 - 1
             total = ''.join(list(data.keys()) + list(data.values()))
             length += len(total)
             return str(length)
-        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/yqfkLogDailyreport/v2'
+        Url = 'https://tjxsfw.chisai.tech/api/school_tjxsfw_student/yqfkLogDailyreport/v3'
         Headers = self.headers
         Headers['Content-Length'] = Gen_contentLength(self.POST)
         Post = parse.urlencode(self.POST).replace('+', '%20')
         try:
             Requ = self.session.post(url=Url, headers=Headers, data=Post)
         except Exception as Error:
-            self.Error('requestsError: v2\n' + str(Error))
-        self.v2Text = Requ.text
+            self.Error('requestsError: v3\n' + str(Error))
+        self.v3Text = Requ.text
         return Requ
 
     def run(self):
         if self.verifyToken():
+            if '操作成功' in self.tblAnnouncement().text:
+                time.sleep(1)
+                if '操作成功' in self.isActivated().text:
+                    time.sleep(1)
+                    if '操作成功' in self.csQDef().text:
+                        time.sleep(1)
+                        if '已提交' in self.yqfkQVaccine1().text:
+                            time.sleep(1)
+                            if '今日未打卡' in self.hasDoneToday().text:
+                                time.sleep(1)
+                                if '操作成功' in self.yqfkRefRisklocationsGov().text:
+                                    time.sleep(3)
+                                    if '操作成功' in self.v3().text:
+                                        self.Success()
+                                    else:
+                                        self.Error('无法打卡！\n' + self.v3Text)
+                                else:
+                                    self.Error('无法获取高风险地区！\n' + self.yqfkRefRisklocationsGovText)
+                            elif '今日已打卡' in self.hasDoneTodayText:
+                                self.Error('今日已打卡！\n')
+                            else:
+                                self.Error('无法获取打卡状态！\n' + self.hasDoneTodayText)
+                        else:
+                            self.Error('无法获取疫苗状态！\n' + self.yqfkQVaccine1Text)
+                    else:
+                        self.Error('无法获取csQef！\n' + self.csQDefText)
+                else:
+                    self.Error('无法连接服务器！\n' + self.isActivatedText)
+            else:
+                self.Error('无法获取通知！\n' + self.tblAnnouncementText)
+        else:
+            self.Error('Token已过期！\n')
+        return self.ifSuccess
+
+    def runForce(self):
+        if self.verifyToken():
             if '操作成功' in self.isActivated().text:
                 time.sleep(1)
-                if '今日未打卡' in self.hasDoneToday().text:
-                    time.sleep(3)
-                    if '操作成功' in self.v2().text:
-                        self.Success()
+                if '操作成功' in self.csQDef().text:
+                    time.sleep(1)
+                    if '今日未打卡' in self.hasDoneToday().text:
+                        time.sleep(3)
+                        if '操作成功' in self.v3().text:
+                            self.Success()
+                        else:
+                            self.Error('无法打卡！\n' + self.v3Text)
+                    elif '今日已打卡' in self.hasDoneTodayText:
+                        self.Error('今日已打卡！\n')
                     else:
-                        self.Error('无法打卡！\n' + self.v2Text)
-                elif '今日已打卡' in self.hasDoneTodayText:
-                    self.Error('今日已打卡！\n')
+                        self.Error('无法获取打卡状态！\n' + self.hasDoneTodayText)
                 else:
-                    self.Error('无法获取打卡状态！\n' + self.hasDoneTodayText)
+                    self.Error('无法获取csQef！\n' + self.csQDefText)
             else:
                 self.Error('无法连接服务器！\n' + self.isActivatedText)
         else:
@@ -153,9 +236,13 @@ class Chisai_TJ:
 
     def Success(self):
         self.ifSuccess = True
+
+
         Title = '{}: 打卡成功！ '.format(self.POST['studentStudentno'])
-        Content = 'Token还有{}天到期。'.format(self.exp)
-        ContentEmail = 'Token还有{}天到期。'.format(self.exp)
+        # Content = 'Token还有{}天到期。'.format(self.exp)
+        # ContentEmail = 'Token还有{}天到期。'.format(self.exp)
+        Content = '通知：{}'.format(self.tblAnnouncementText)
+        ContentEmail = '通知：{}'.format(self.tblAnnouncementText)
         self.SendEmail(Title, ContentEmail)
         self.LOG(Title + Content)
 
@@ -166,11 +253,13 @@ class Chisai_TJ:
         self.LOG(Title + Content)
 
     def SendEmail(self, title, content):
-        mail_host = ""
-        mail_user = ""
-        mail_pass = ""
+        if not self.Receivers:
+            return
+        mail_host = "smtp.163.com"
+        mail_user = "XXXX@163.com"
+        mail_pass = "密码或SMTP令牌，邮箱需打开SMTP接口"
 
-        sender = ''
+        sender = mail_user
         receivers = self.Receivers
 
         message = MIMEText(content, 'plain', 'utf-8')
